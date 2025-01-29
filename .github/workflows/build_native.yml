@@ -1,0 +1,130 @@
+name: Build Native
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'CMakeLists.txt'
+      - 'src/native/**'
+      - .github/workflows/build_native.yml
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'src/native/**'
+      - .github/workflows/build_native.yml
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Get CMake
+      uses: lukka/get-cmake@v3.29.4
+      
+    - name: Configure win-x64
+      run: cmake -S "src/native" -B "build_win_64" -G "Visual Studio 17 2022" -A x64 -D CMAKE_SYSTEM_VERSION=10.0.26100.0
+    - name: Build win-x64
+      run: cmake --build build_win_64 --config Release
+
+    - name: Package Windows
+      run: |
+        mkdir bin/win-x64/native
+        mv build_win_64\bin\Release\alimer_physics.dll bin/win-x64/native
+    - uses: actions/upload-artifact@v4
+      with:
+        name: libs_windows
+        path: bin
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Get CMake
+      uses: lukka/get-cmake@v3.29.4
+
+    - name: Configure linux-x64
+      run: cmake -S "src/native" -B "build_linux_x64" -G Ninja -DCMAKE_BUILD_TYPE=Release
+    - name: Build linux-x64
+      run: cmake --build build_linux_x64 --config Release --verbose --parallel
+
+    # Linux artifact 
+    - name: package_linux
+      run: |
+        mkdir -p bin/linux-x64/native
+        mv build_linux_x64/lib/libalimer_assets.so bin/linux-x64/native/libalimer_assets.so
+    - uses: actions/upload-artifact@v4
+      with:
+        name: libs_linux
+        path: bin
+
+  macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Get CMake
+      uses: lukka/get-cmake@v3.29.4
+
+    - name: Configure osx-universal
+      run: cmake -S "src/native" -B "build_osx" -G Ninja -DCMAKE_BUILD_TYPE=Release -D"CMAKE_OSX_ARCHITECTURES=x86_64;arm64"
+    - name: Build osx-universal
+      run: cmake --build build_osx --config Release --verbose --parallel
+
+    # macOS artifacts
+    - name: package_osx
+      run: |
+        mkdir -p bin/osx/native
+        mv build_osx/lib/libalimer_assets.dylib bin/osx/native/libalimer_assets.dylib
+    - uses: actions/upload-artifact@v4
+      with:
+        name: libs_osx
+        path: bin
+
+  update_libs:
+    name: Update Native Libs
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [windows, linux, macos]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libs_windows
+          path: src/Alimer.Assets/runtimes
+
+      - name: Download linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libs_linux
+          path: src/Alimer.Assets/runtimes
+
+      - name: Download osx artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libs_osx
+          path: src/Alimer.Assets/runtimes          
+
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: src/Alimer.Assets/runtimes
+
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9.1.4
+        with:
+          message: Updated native libs
+          committer_name: GitHub Actions
+          committer_email: actions@github.com
+      - uses: geekyeggo/delete-artifact@v5
+        with:
+          name: |
+            libs_windows
+            libs_linux
+            libs_osx

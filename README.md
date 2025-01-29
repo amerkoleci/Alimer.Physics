@@ -1,2 +1,2 @@
 # Alimer.Physics
-Cross-platform physics engine
+Cross-platform C# physics engine using [Jolt](https://github.com/jrouwe/JoltPhysics)
