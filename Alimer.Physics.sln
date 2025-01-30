@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35707.178
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alimer.Physics", "src\Alimer.Physics\Alimer.Physics.csproj", "{9927608A-50FD-47E0-99A4-F918CD370D45}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".root", ".root", "{2A05F62B-24D2-4441-8DBD-29F7FF2C203D}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
@@ -19,6 +17,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".root", ".root", "{2A05F62B
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{2A6A9CA6-6F4F-4E02-99EE-F056923FB90A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{4F3F1231-679F-4772-BDE9-F96103C4F49A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alimer.Physics", "src\Alimer.Physics\Alimer.Physics.csproj", "{9927608A-50FD-47E0-99A4-F918CD370D45}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alimer.Physics.UnitTests", "tests\Alimer.Physics.UnitTests\Alimer.Physics.UnitTests.csproj", "{0DF061E9-F53E-408C-8B49-2506CA453968}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,8 +35,15 @@ Global
 		{9927608A-50FD-47E0-99A4-F918CD370D45}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9927608A-50FD-47E0-99A4-F918CD370D45}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9927608A-50FD-47E0-99A4-F918CD370D45}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0DF061E9-F53E-408C-8B49-2506CA453968}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DF061E9-F53E-408C-8B49-2506CA453968}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DF061E9-F53E-408C-8B49-2506CA453968}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DF061E9-F53E-408C-8B49-2506CA453968}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0DF061E9-F53E-408C-8B49-2506CA453968} = {2A6A9CA6-6F4F-4E02-99EE-F056923FB90A}
 	EndGlobalSection
 EndGlobal

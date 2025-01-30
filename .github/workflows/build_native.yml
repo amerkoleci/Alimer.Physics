@@ -32,8 +32,8 @@ jobs:
 
     - name: Package Windows
       run: |
-        mkdir bin/win-x64/native
-        mv build_win_64\bin\Distribution\alimer_physics.dll bin/win-x64/native
+        mkdir bin/win-x64
+        mv build_win_64\bin\Distribution\alimer_physics.dll bin/win-x64
     - uses: actions/upload-artifact@v4
       with:
         name: libs_windows
@@ -55,8 +55,8 @@ jobs:
     # Linux artifact 
     - name: package_linux
       run: |
-        mkdir -p bin/linux-x64/native
-        mv build_linux_x64/lib/libalimer_physics.so bin/linux-x64/native/libalimer_physics.so
+        mkdir -p bin/linux-x64
+        mv build_linux_x64/lib/libalimer_physics.so bin/linux-x64/libalimer_physics.so
     - uses: actions/upload-artifact@v4
       with:
         name: libs_linux
@@ -78,8 +78,8 @@ jobs:
     # macOS artifacts
     - name: package_osx
       run: |
-        mkdir -p bin/osx/native
-        mv build_osx/lib/libalimer_physics.dylib bin/osx/native/libalimer_physics.dylib
+        mkdir -p bin/osx
+        mv build_osx/lib/libalimer_physics.dylib bin/osx/libalimer_physics.dylib
     - uses: actions/upload-artifact@v4
       with:
         name: libs_osx
@@ -98,23 +98,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: libs_windows
-          path: src/Alimer.Physics/runtimes
+          path: native
 
       - name: Download linux artifacts
         uses: actions/download-artifact@v4
         with:
           name: libs_linux
-          path: src/Alimer.Physics/runtimes
+          path: native
 
       - name: Download osx artifacts
         uses: actions/download-artifact@v4
         with:
           name: libs_osx
-          path: src/Alimer.Physics/runtimes          
+          path: native
 
       - name: Display structure of downloaded files
         run: ls -R
-        working-directory: src/Alimer.Physics/runtimes
+        working-directory: native
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9.1.4

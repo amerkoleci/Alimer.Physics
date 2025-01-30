@@ -28,7 +28,7 @@
 #    define _ALIMER_EXTERN extern
 #endif
 
-#define ALIMER_API _ALIMER_EXTERN _ALIMER_EXPORT 
+#define ALIMER_API _ALIMER_EXTERN _ALIMER_EXPORT
 
 #ifdef _WIN32
 #   define ALIMER_CALL __cdecl
@@ -51,7 +51,7 @@ typedef enum LogLevel {
     LogLevel_Error = 0,
     LogLevel_Warn = 1,
     LogLevel_Info = 2,
-    LogLevel_Trace = 4,
+    LogLevel_Trace = 3,
 
     LogLevel_Count,
     _LogLevel_Force32 = 0x7FFFFFFF
