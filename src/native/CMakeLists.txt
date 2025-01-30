@@ -5,6 +5,12 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 	return()
 endif()
 
+# enable MSVC_RUNTIME_LIBRARY target property
+# see https://cmake.org/cmake/help/latest/policy/CMP0091.html
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 # Determine if engine is built as a subproject (using add_subdirectory)
 # or if it is the master project.
 if (NOT DEFINED ALIMER_MASTER_PROJECT)
@@ -12,12 +18,6 @@ if (NOT DEFINED ALIMER_MASTER_PROJECT)
     if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
         set(ALIMER_MASTER_PROJECT ON)
         message(STATUS "CMake version: ${CMAKE_VERSION}")
-    endif ()
-endif ()
-
-if (MSVC AND ALIMER_MASTER_PROJECT)
-    if (NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
-        set (CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif ()
 endif ()
 
@@ -39,6 +39,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
+# Define standard configurations (Debug, Release, Distribution)
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Distribution")
+
 # Build version
 set(ALIMER_VERSION_MAJOR 1)
 set(ALIMER_VERSION_MINOR 0)
@@ -46,7 +49,16 @@ set(ALIMER_VERSION_PATCH 0)
 set(ALIMER_VERSION ${ALIMER_VERSION_MAJOR}.${ALIMER_VERSION_MINOR}.${ALIMER_VERSION_PATCH})
 
 # Project declaration
-project(alimer_physics LANGUAGES CXX C)
+project(alimer_physics
+    VERSION ${ALIMER_VERSION}
+    DESCRIPTION "Cross-platform physics engine using Jolt"
+    HOMEPAGE_URL "https://github.com/amerkoleci/Alimer.Physics"
+    LANGUAGES CXX C
+)
+
+if (ALIMER_MASTER_PROJECT AND NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded$<$<CONFIG:Debug>:Debug>)
+endif()
 
 # Set the default CMAKE_BUILD_TYPE to Release.
 # This should be done before the project command since the latter can set
@@ -58,39 +70,7 @@ endif ()
 
 # CPM
 include(cmake/CPM.cmake)
-
-# Setting Platform
-if(EMSCRIPTEN)
-    set(ALIMER_PLATFORM_NAME "Web")
-elseif(ANDROID)
-    set(ALIMER_PLATFORM_NAME "Android")
-elseif(IOS)
-    set(ALIMER_PLATFORM_NAME "iOS")
-elseif(APPLE)
-    set(ALIMER_PLATFORM_NAME "macOS")
-elseif(WINDOWS_STORE)
-    set(ALIMER_PLATFORM_NAME "UWP")
-elseif(WIN32)
-    set(ALIMER_PLATFORM_NAME "Win32")
-elseif(UNIX)
-    set(ALIMER_PLATFORM_NAME "Unix")
-    set(ALIMER_LINUX_WSI_SELECTION "XCB" CACHE STRING "Select WSI target (XCB, XLIB, WAYLAND, D2D)")
-else()
-    message(FATAL_ERROR "Unrecognized platform: ${CMAKE_SYSTEM_NAME}")
-endif()
-
-# Setting Architecture
-if (DEFINED VCPKG_TARGET_ARCHITECTURE)
-    set(ALIMER_ARCH ${VCPKG_TARGET_ARCHITECTURE})
-elseif(CMAKE_GENERATOR_PLATFORM MATCHES "^[Ww][Ii][Nn]32$")
-    set(ALIMER_ARCH x86)
-elseif(CMAKE_GENERATOR_PLATFORM MATCHES "^[Xx]64$")
-    set(ALIMER_ARCH x64)
-elseif(CMAKE_GENERATOR_PLATFORM MATCHES "^[Aa][Rr][Mm]$")
-    set(ALIMER_ARCH arm)
-elseif(CMAKE_GENERATOR_PLATFORM MATCHES "^[Aa][Rr][Mm]64$")
-    set(ALIMER_ARCH arm64)
-endif()
+include(cmake/alimer.cmake)
 
 # Options
 if (IOS OR EMSCRIPTEN)
@@ -110,23 +90,26 @@ else ()
 endif ()
 
 CPMAddPackage(
-        NAME JoltPhysics
-        GITHUB_REPOSITORY jrouwe/JoltPhysics
-        GIT_TAG 15561f849140c06693b34fd16dd87b503ab155d0
-        SOURCE_SUBDIR Build
-        OPTIONS
-            "OBJECT_LAYER_BITS 16"
-            "DOUBLE_PRECISION OFF"
-            "GENERATE_DEBUG_SYMBOLS OFF"
-            "CROSS_PLATFORM_DETERMINISTIC OFF"
-            "ENABLE_INSTALL OFF"
-            "ENABLE_ALL_WARNINGS OFF"
-            "CPP_EXCEPTIONS_ENABLED OFF"
-            "CPP_RTTI_ENABLED OFF"
-            "USE_STATIC_MSVC_RUNTIME_LIBRARY OFF"
-            "ENABLE_OBJECT_STREAM OFF"
-    )
-    set_property(TARGET Jolt PROPERTY FOLDER "ThirdParty")
+    NAME JoltPhysics
+    GITHUB_REPOSITORY jrouwe/JoltPhysics
+    GIT_TAG 294c22850cd1a7b115f10da17bdd070ad46373bc
+    SOURCE_SUBDIR Build
+    OPTIONS
+        "OBJECT_LAYER_BITS 16"
+        "DOUBLE_PRECISION OFF"
+        "GENERATE_DEBUG_SYMBOLS OFF"
+        "CROSS_PLATFORM_DETERMINISTIC OFF"
+        "ENABLE_INSTALL OFF"
+        "ENABLE_ALL_WARNINGS OFF"
+        "CPP_EXCEPTIONS_ENABLED OFF"
+        "CPP_RTTI_ENABLED OFF"
+        "ENABLE_OBJECT_STREAM OFF"
+)
+set_property(TARGET Jolt PROPERTY FOLDER "ThirdParty")
+
+set(CMAKE_CXX_FLAGS_DISTRIBUTION "${CMAKE_CXX_FLAGS_RELEASE}")
+set(CMAKE_SHARED_LINKER_FLAGS_DISTRIBUTION "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
+set(CMAKE_EXE_LINKER_FLAGS_DISTRIBUTION "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
 
 # Define target name
 set (TARGET_NAME alimer_physics)

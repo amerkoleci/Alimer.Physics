@@ -40,31 +40,73 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* Forward */
+typedef struct PhysicsWorldImpl* PhysicsWorld;
+typedef struct PhysicsBodyImpl* PhysicsBody;
+typedef struct PhysicsShapeImpl* PhysicsShape;
+typedef struct PhysicsMaterialImpl* PhysicsMaterial;
+
+/* Enums */
 typedef enum LogLevel {
-    LogLevel_Off = 0,
-    LogLevel_Trace = 1,
-    LogLevel_Debug = 2,
-    LogLevel_Info = 3,
-    LogLevel_Warn = 4,
-    LogLevel_Error = 5,
-    LogLevel_Fatal = 6,
+    LogLevel_Error = 0,
+    LogLevel_Warn = 1,
+    LogLevel_Info = 2,
+    LogLevel_Trace = 4,
 
     LogLevel_Count,
     _LogLevel_Force32 = 0x7FFFFFFF
 } LogLevel;
 
+typedef enum PhysicsShapeType {
+    PhysicsShapeType_Box,
+    PhysicsShapeType_Sphere,
+    PhysicsShapeType_Capsule,
+    PhysicsShapeType_Cylindex,
+    PhysicsShapeType_Convex,
+    PhysicsShapeType_Mesh,
+    PhysicsShapeType_Terrain,
+
+    _PhysicsShapeType_Count,
+    _PhysicsShapeType_Force32 = 0x7FFFFFFF
+} PhysicsShapeType;
+
 typedef struct PhysicsConfig {
     void* userdata;
-    void (*logCallback)(void* userdata, const char* message);
-    void* (*allocCallback)(size_t size);
-    void (*freeCallback)(void* data);
+    void (*logCallback)(void* userdata, LogLevel level, const char* message);
 
     uint32_t tempAllocatorInitSize;
     uint32_t maxPhysicsJobs;
     uint32_t maxPhysicsBarriers;
 } PhysicsConfig;
 
+typedef struct PhysicsWorldConfig {
+    uint32_t maxBodies;
+    uint32_t maxBodyPairs;
+} PhysicsWorldConfig;
+
 ALIMER_API bool alimerPhysicsInit(const PhysicsConfig* config);
 ALIMER_API void alimerPhysicsShutdown(void);
+
+/* World */
+ALIMER_API PhysicsWorld alimerPhysicsWorldCreate(const PhysicsWorldConfig* config);
+ALIMER_API void alimerPhysicsWorldDestroy(PhysicsWorld world);
+ALIMER_API uint32_t alimerPhysicsWorldGetBodyCount(PhysicsWorld world);
+ALIMER_API uint32_t alimerPhysicsWorldGetActiveBodyCount(PhysicsWorld world);
+ALIMER_API void alimerPhysicsWorldGetGravity(PhysicsWorld world, float gravity[3]);
+ALIMER_API void alimerPhysicsWorldSetGravity(PhysicsWorld world, const float gravity[3]);
+ALIMER_API bool alimerPhysicsWorldUpdate(PhysicsWorld world, float deltaTime, int collisionSteps);
+
+/* Shape */
+ALIMER_API void alimerPhysicsShapeAddRef(PhysicsShape shape);
+ALIMER_API void alimerPhysicsShapeRelease(PhysicsShape shape);
+ALIMER_API bool alimerPhysicsShapeIsValid(PhysicsShape shape);
+ALIMER_API PhysicsShapeType alimerPhysicsShapeGetType(PhysicsShape shape);
+ALIMER_API PhysicsShape alimerPhysicsCreateBoxShape(const float dimensions[3]);
+
+/* Body */
+ALIMER_API PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, PhysicsShape shape);
+ALIMER_API void alimerPhysicsBodyAddRef(PhysicsBody body);
+ALIMER_API void alimerPhysicsBodyRelease(PhysicsBody body);
+ALIMER_API bool alimerPhysicsBodyIsValid(PhysicsBody body);
 
 #endif /* _ALIMER_PHYSICS_H */
