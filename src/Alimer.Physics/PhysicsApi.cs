@@ -32,6 +32,23 @@ internal static unsafe partial class PhysicsApi
         public uint maxPhysicsBarriers;
     }
 
+    public struct PhysicsBodyDesc
+    {
+        public PhysicsBodyType type;
+        public PhysicsBodyTransform initialTransform;
+        public float mass;
+        public float friction;
+        public float restitution;
+        public float linearDamping;
+        public float angularDamping;
+        public float gravityScale;
+        public bool isSensor;
+        public bool allowSleeping;
+        public bool continuous;
+        public nuint shapeCount;
+        public NativePhysicsShape* shapes;
+    }
+
     [LibraryImport(LibName)]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool alimerPhysicsInit(in PhysicsConfig config);
@@ -45,9 +62,9 @@ internal static unsafe partial class PhysicsApi
     [LibraryImport(LibName)]
     public static partial void alimerPhysicsWorldDestroy(NativePhysicsWorld world);
     [LibraryImport(LibName)]
-    public static partial uint alimerPhysicsWorldGetBodyCount(NativePhysicsWorld world);
+    public static partial int alimerPhysicsWorldGetBodyCount(NativePhysicsWorld world);
     [LibraryImport(LibName)]
-    public static partial uint alimerPhysicsWorldGetActiveBodyCount(NativePhysicsWorld world);
+    public static partial int alimerPhysicsWorldGetActiveBodyCount(NativePhysicsWorld world);
     [LibraryImport(LibName)]
     public static partial void alimerPhysicsWorldGetGravity(NativePhysicsWorld world, out Vector3 gravity);
     [LibraryImport(LibName)]
@@ -56,6 +73,10 @@ internal static unsafe partial class PhysicsApi
     [LibraryImport(LibName)]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool alimerPhysicsWorldUpdate(NativePhysicsWorld world, float deltaTime, int collisionSteps);
+
+
+    [LibraryImport(LibName)]
+    public static partial void alimerPhysicsWorldOptimizeBroadPhase(NativePhysicsWorld world);
 
     /* Shape */
     [LibraryImport(LibName)]
@@ -71,21 +92,31 @@ internal static unsafe partial class PhysicsApi
     public static partial PhysicsShapeType alimerPhysicsShapeGetType(NativePhysicsShape shape);
 
     [LibraryImport(LibName)]
-    public static partial NativePhysicsShape alimerPhysicsCreateBoxShape(in Vector3 dimensions);
+    public static partial NativePhysicsShape alimerPhysicsShapeCreateBox(in Vector3 dimensions);
+
+    [LibraryImport(LibName)]
+    public static partial NativePhysicsShape alimerPhysicsShapeCreateSphere(float radius);
 
     /* Body */
     [LibraryImport(LibName)]
-    public static partial NativePhysicsShape alimerPhysicsBodyCreate(NativePhysicsWorld world, NativePhysicsShape shape);
+    public static partial void alimerPhysicsBodyDescInit(PhysicsBodyDesc* desc);
+
 
     [LibraryImport(LibName)]
-    public static partial void alimerPhysicsBodyAddRef(NativePhysicsShape body);
+    public static partial NativePhysicsBody alimerPhysicsBodyCreate(NativePhysicsWorld world, PhysicsBodyDesc* desc);
 
     [LibraryImport(LibName)]
-    public static partial void alimerPhysicsBodyRelease(NativePhysicsShape body);
+    public static partial void alimerPhysicsBodyAddRef(NativePhysicsBody body);
+
+    [LibraryImport(LibName)]
+    public static partial void alimerPhysicsBodyRelease(NativePhysicsBody body);
 
     [LibraryImport(LibName)]
     [return: MarshalAs(UnmanagedType.U1)]
-    public static partial bool alimerPhysicsBodyIsValid(NativePhysicsShape body);
+    public static partial bool alimerPhysicsBodyIsValid(NativePhysicsBody body);
+
+    [LibraryImport(LibName)]
+    public static partial void alimerPhysicsBodyGetWorldTransform(NativePhysicsBody body, PhysicsBodyTransform* result);
 
     #region Marshal
     /// <summary>Converts an unmanaged string to a managed version.</summary>

@@ -63,6 +63,16 @@ namespace
         result->y = jolt.GetY();
         result->z = jolt.GetZ();
     }
+
+    Vec3 FromJolt(const JPH::RVec3& jolt)
+    {
+        return { jolt.GetX(), jolt.GetY(), jolt.GetZ() };
+    }
+
+    Quat FromJolt(const JPH::Quat& jolt)
+    {
+        return { jolt.GetX(), jolt.GetY(), jolt.GetZ(), jolt.GetW()};
+    }
 }
 
 // Based on: https://github.com/jrouwe/JoltPhysics/blob/master/HelloWorld/HelloWorld.cpp
@@ -263,6 +273,7 @@ struct PhysicsBodyImpl final
     std::atomic_uint32_t refCount;
     JPH::Body* handle = nullptr;
     JPH::BodyID id;
+    PhysicsWorldImpl* world = nullptr;
 };
 
 struct PhysicsShapeImpl final
@@ -576,7 +587,7 @@ PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, const PhysicsBodyDesc* d
     {
         for (size_t i = 0; i < desc->shapeCount; i++)
         {
-            if (!desc->shapes[i]->body)
+            if (desc->shapes[i]->body)
             {
                 Log(LogLevel_Error, "Shape is already attached to a collider");
                 return nullptr;
@@ -592,12 +603,6 @@ PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, const PhysicsBodyDesc* d
         LogFormat(LogLevel_Error, "Too many bodies, limit %s reached!", limit);
         return nullptr;
     }
-
-    //if (!shape->body)
-    //{
-    //    alimerLogError(LogCategory_Physics, "Shape is already attached to a collider!");
-    //    return nullptr;
-    //}
 
     JPH::BodyInterface& bodyInterface = world->system.GetBodyInterface();
 
@@ -648,9 +653,9 @@ PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, const PhysicsBodyDesc* d
     }
 
     body->handle = bodyInterface.CreateBody(bodySettings);
-    
     body->id = body->handle->GetID();
     body->handle->SetUserData((uint64_t)(uintptr_t)body);
+    body->world = world;
 
     // Add it to the world
     bodyInterface.AddBody(body->id, JPH::EActivation::Activate);
@@ -666,6 +671,17 @@ void alimerPhysicsBodyRelease(PhysicsBody body)
 {
     if (body->refCount.fetch_sub(1, std::memory_order_release) == 1)
     {
+        JPH::BodyInterface& bodyInterface = body->world->system.GetBodyInterface();
+        bool added = bodyInterface.IsAdded(body->id);
+        if (added) {
+            bodyInterface.RemoveBody(body->id);
+        }
+
+        bodyInterface.DestroyBody(body->id);
+        body->handle = nullptr;
+        body->id = {};
+        body->world = nullptr;
+
         delete body;
     }
 }
@@ -673,4 +689,15 @@ void alimerPhysicsBodyRelease(PhysicsBody body)
 bool alimerPhysicsBodyIsValid(PhysicsBody body)
 {
     return body && body->handle != nullptr;
+}
+
+void alimerPhysicsBodyGetWorldTransform(PhysicsBody body, PhysicsBodyTransform* result)
+{
+    JPH::RVec3 position{};
+    JPH::Quat rotation{};
+    body->world->system.GetBodyInterface().GetPositionAndRotation(body->id, position, rotation);
+    body->world->system.GetBodyInterface().GetWorldTransform();
+
+    result->position = FromJolt(position);
+    result->rotation = FromJolt(rotation);
 }

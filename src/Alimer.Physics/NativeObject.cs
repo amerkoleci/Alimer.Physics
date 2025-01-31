@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 
 namespace Alimer.Physics;
 
-public abstract class NativeObject
+public abstract class NativeObject : IDisposable
 {
     private volatile uint _isDisposed;
     internal bool fromFinalizer = false;
@@ -39,7 +39,6 @@ public abstract class NativeObject
 
     /// <summary>Gets <c>true</c> if the object has been disposed; otherwise, <c>false</c>.</summary>
     public bool IsDisposed => _isDisposed != 0;
-    protected internal bool IgnorePublicDispose { get; set; }
 
     internal ConcurrentDictionary<nint, NativeObject> OwnedObjects
     {
@@ -78,9 +77,6 @@ public abstract class NativeObject
 
     public void Dispose()
     {
-        if (IgnorePublicDispose)
-            return;
-
         DisposeInternal();
     }
 

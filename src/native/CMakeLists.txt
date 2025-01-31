@@ -92,7 +92,7 @@ endif ()
 CPMAddPackage(
     NAME JoltPhysics
     GITHUB_REPOSITORY jrouwe/JoltPhysics
-    GIT_TAG 294c22850cd1a7b115f10da17bdd070ad46373bc
+    GIT_TAG b2eb3cb3e13de140b4134a26df73255db37ea74e
     SOURCE_SUBDIR Build
     OPTIONS
         "OBJECT_LAYER_BITS 16"

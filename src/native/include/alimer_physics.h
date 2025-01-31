@@ -160,5 +160,6 @@ ALIMER_API PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, const Physics
 ALIMER_API void alimerPhysicsBodyAddRef(PhysicsBody body);
 ALIMER_API void alimerPhysicsBodyRelease(PhysicsBody body);
 ALIMER_API bool alimerPhysicsBodyIsValid(PhysicsBody body);
+ALIMER_API void alimerPhysicsBodyGetWorldTransform(PhysicsBody body, PhysicsBodyTransform* result);
 
 #endif /* _ALIMER_PHYSICS_H */
