@@ -20,6 +20,7 @@ JPH_SUPPRESS_WARNINGS
 #include "Jolt/Physics/Collision/Shape/SphereShape.h"
 #include "Jolt/Physics/Collision/Shape/CapsuleShape.h"
 #include "Jolt/Physics/Collision/Shape/CylinderShape.h"
+#include "Jolt/Physics/Collision/Shape/MutableCompoundShape.h"
 JPH_SUPPRESS_WARNING_POP
 
 // STL includes
@@ -27,16 +28,40 @@ JPH_SUPPRESS_WARNING_POP
 
 namespace
 {
-    JPH::Vec3 ToJolt(const float value[3])
+    constexpr JPH::EMotionType ToJolt(PhysicsBodyType value)
     {
-        return JPH::Vec3(value[0], value[1], value[2]);
+        switch (value)
+        {
+            case PhysicsBodyType_Kinematic:
+                return JPH::EMotionType::Kinematic;
+            case PhysicsBodyType_Dynamic:
+                return JPH::EMotionType::Dynamic;
+            case PhysicsBodyType_Static:
+            default:
+                return JPH::EMotionType::Static;
+        }
     }
 
-    void FromJolt(const JPH::Vec3& jolt, float result[3])
+    JPH::RVec3 ToJolt(const Vec3& value)
     {
-        result[0] = jolt.GetX();
-        result[1] = jolt.GetY();
-        result[2] = jolt.GetZ();
+        return JPH::Vec3(value.x, value.y, value.z);
+    }
+
+    JPH::Quat ToJolt(const Quat& value)
+    {
+        return JPH::Quat(value.x, value.y, value.z, value.w);
+    }
+
+    JPH::Vec3 ToJolt(const Vec3* value)
+    {
+        return JPH::Vec3(value->x, value->y, value->z);
+    }
+
+    void FromJolt(const JPH::Vec3& jolt, Vec3* result)
+    {
+        result->x = jolt.GetX();
+        result->y = jolt.GetY();
+        result->z = jolt.GetZ();
     }
 }
 
@@ -236,7 +261,7 @@ struct PhysicsWorldImpl final
 struct PhysicsBodyImpl final
 {
     std::atomic_uint32_t refCount;
-    JPH::Body* handle;
+    JPH::Body* handle = nullptr;
     JPH::BodyID id;
 };
 
@@ -245,7 +270,7 @@ struct PhysicsShapeImpl final
     std::atomic_uint32_t refCount;
     PhysicsShapeType type;
     JPH::ShapeRefC handle;
-    PhysicsBody* body;
+    PhysicsBodyImpl* body = nullptr;
 };
 
 struct PhysicsMaterialImpl final
@@ -420,12 +445,12 @@ uint32_t alimerPhysicsWorldGetActiveBodyCount(PhysicsWorld world)
     return world->system.GetNumActiveBodies(JPH::EBodyType::RigidBody);
 }
 
-void alimerPhysicsWorldGetGravity(PhysicsWorld world, float gravity[3])
+void alimerPhysicsWorldGetGravity(PhysicsWorld world, Vec3* result)
 {
-    FromJolt(world->system.GetGravity(), gravity);
+    FromJolt(world->system.GetGravity(), result);
 }
 
-void alimerPhysicsWorldSetGravity(PhysicsWorld world, const float gravity[3])
+void alimerPhysicsWorldSetGravity(PhysicsWorld world, const Vec3* gravity)
 {
     world->system.SetGravity(ToJolt(gravity));
 }
@@ -439,6 +464,11 @@ bool alimerPhysicsWorldUpdate(PhysicsWorld world, float deltaTime, int collision
         state.jobSystem
     );
     return error == JPH::EPhysicsUpdateError::None;
+}
+
+void alimerPhysicsWorldOptimizeBroadPhase(PhysicsWorld world)
+{
+    world->system.OptimizeBroadPhase();
 }
 
 /* Shape */
@@ -465,16 +495,16 @@ PhysicsShapeType alimerPhysicsShapeGetType(PhysicsShape shape)
     return shape->type;
 }
 
-PhysicsShape alimerPhysicsCreateBoxShape(const float dimensions[3])
+PhysicsShape alimerPhysicsShapeCreateBox(const Vec3* extents)
 {
+    if (!extents) {
+        return nullptr;
+    }
+
     //ALIMER_Check(dimensions[0] > 0.f && dimensions[1] > 0.f && dimensions[2] > 0.f, "BoxShape dimensions must be positive");
-
-    PhysicsShapeImpl* shape = new PhysicsShapeImpl();
-    shape->refCount.store(1);
-
-    shape->type = PhysicsShapeType_Box;
-    const JPH::Vec3 halfExtent = { dimensions[0] / 2.f, dimensions[1] / 2.f, dimensions[2] / 2.f };
-    float shortestSide = std::min(dimensions[0], std::min(dimensions[1], dimensions[2]));
+    
+    const JPH::Vec3 halfExtent = { extents->x / 2.f, extents->y / 2.f, extents->z / 2.f };
+    float shortestSide = std::min(extents->x, std::min(extents->y, extents->z));
     float convexRadius = std::min(shortestSide * .1f, .05f);
 
     JPH::BoxShapeSettings settings(halfExtent, convexRadius);
@@ -486,14 +516,75 @@ PhysicsShape alimerPhysicsCreateBoxShape(const float dimensions[3])
         return nullptr;
     }
 
+    PhysicsShapeImpl* shape = new PhysicsShapeImpl();
+    shape->refCount.store(1);
+    shape->type = PhysicsShapeType_Box;
     shape->handle = shapeResult.Get();
     //shape->handle->SetUserData((uint64_t)(uintptr_t)shape);
     return shape;
 }
 
-/* Body */
-PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, PhysicsShape shape)
+PhysicsShape alimerPhysicsShapeCreateSphere(float radius)
 {
+    if (radius <= 0.f)
+    {
+        Log(LogLevel_Error, "SphereShape radius must be positive");
+        return nullptr;
+    }
+
+    JPH::SphereShapeSettings settings(radius);
+    settings.SetEmbedded();
+    JPH::ShapeSettings::ShapeResult shapeResult = settings.Create();
+    if (!shapeResult.IsValid())
+    {
+        LogFormat(LogLevel_Error, "CreateSphere failed with %s", shapeResult.GetError().c_str());
+        return nullptr;
+    }
+
+    PhysicsShapeImpl* shape = new PhysicsShapeImpl();
+    shape->refCount.store(1);
+    shape->type = PhysicsShapeType_Sphere;
+    shape->handle = shapeResult.Get();
+    //shape->handle->SetUserData((uint64_t)(uintptr_t)shape);
+    return shape;
+}
+
+/* PhysicsBody */
+void alimerPhysicsBodyDescInit(PhysicsBodyDesc* desc)
+{
+    desc->type = PhysicsBodyType_Dynamic;
+    desc->mass = 1.0f;
+    desc->friction = 0.2f;
+    desc->restitution = 0.0f;
+    desc->linearDamping = 0.05f;
+    desc->angularDamping = 0.05f;
+    desc->gravityScale = 1.0f;
+    desc->isSensor = false;
+    desc->allowSleeping = true;
+    desc->continuous = false;
+    desc->shapeCount = 0;
+    desc->shapes = nullptr;
+}
+
+PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, const PhysicsBodyDesc* desc)
+{
+    if (!desc) {
+        return nullptr;
+    }
+
+    if (desc->shapeCount > 0)
+    {
+        for (size_t i = 0; i < desc->shapeCount; i++)
+        {
+            if (!desc->shapes[i]->body)
+            {
+                Log(LogLevel_Error, "Shape is already attached to a collider");
+                return nullptr;
+            }
+        }
+    }
+
+    // Verify limit
     const uint32_t count = world->system.GetNumBodies();
     const uint32_t limit = world->system.GetMaxBodies();
     if (count >= limit)
@@ -502,7 +593,6 @@ PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, PhysicsShape shape)
         return nullptr;
     }
 
-    ALIMER_ASSERT(shape);
     //if (!shape->body)
     //{
     //    alimerLogError(LogCategory_Physics, "Shape is already attached to a collider!");
@@ -511,21 +601,54 @@ PhysicsBody alimerPhysicsBodyCreate(PhysicsWorld world, PhysicsShape shape)
 
     JPH::BodyInterface& bodyInterface = world->system.GetBodyInterface();
 
-    JPH::RVec3 position = JPH::RVec3::sZero();
-    JPH::Quat rotation = JPH::Quat::sIdentity();
-    JPH::EMotionType type = shape && shape->handle->MustBeStatic() ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic;
-    JPH::ObjectLayer objectLayer = type == JPH::EMotionType::Static ? Layers::NON_MOVING : Layers::MOVING;
-    JPH::BodyCreationSettings settings(
-        shape ? shape->handle : world->emptyShape,
-        position,
-        rotation,
-        type,
-        objectLayer
-    );
+    JPH::RVec3 position = ToJolt(desc->initialTransform.position);
+    JPH::Quat rotation = ToJolt(desc->initialTransform.rotation);
+
+    JPH::EMotionType motionType = ToJolt(desc->type); // shape->handle->MustBeStatic()
+    JPH::ObjectLayer objectLayer = (desc->type == PhysicsBodyType_Static) ? Layers::NON_MOVING : Layers::MOVING;
 
     PhysicsBodyImpl* body = new PhysicsBodyImpl();
     body->refCount.store(1);
-    body->handle = bodyInterface.CreateBody(settings);
+    JPH::MutableCompoundShapeSettings compoundShapeSettings;
+    JPH::BodyCreationSettings bodySettings;
+    bodySettings.mPosition = ToJolt(desc->initialTransform.position);
+    bodySettings.mRotation = ToJolt(desc->initialTransform.rotation);
+    bodySettings.mObjectLayer = objectLayer;
+    bodySettings.mMotionType = motionType;
+
+    bool useCompoundShape = desc->shapeCount > 1;   
+    if (useCompoundShape)
+    {
+        for (size_t i = 0; i < desc->shapeCount; i++)
+        {
+            compoundShapeSettings.AddShape(JPH::Vec3::sZero(), JPH::Quat::sIdentity(), desc->shapes[i]->handle);
+        }
+
+        bodySettings.SetShapeSettings(&compoundShapeSettings);
+    }
+    else
+    {
+        bodySettings.SetShape((desc->shapeCount == 0) ? world->emptyShape : desc->shapes[0]->handle);
+    }
+
+    bodySettings.mAllowedDOFs = JPH::EAllowedDOFs::All;
+    // Allow dynamic bodies to become kinematic during, e.g., user interaction
+    bodySettings.mAllowDynamicOrKinematic = (desc->type == PhysicsBodyType_Dynamic);
+    bodySettings.mIsSensor = desc->isSensor;
+    bodySettings.mFriction = desc->friction;
+    bodySettings.mRestitution = desc->restitution;
+    bodySettings.mLinearDamping = desc->linearDamping;
+    bodySettings.mAngularDamping = desc->angularDamping;
+    bodySettings.mMotionQuality = desc->continuous ? JPH::EMotionQuality::LinearCast : JPH::EMotionQuality::Discrete;
+    bodySettings.mGravityFactor = desc->gravityScale;
+    if (desc->type != PhysicsBodyType_Static && (desc->mass != 0.0f))
+    {
+        bodySettings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
+        bodySettings.mMassPropertiesOverride.mMass = desc->mass;
+    }
+
+    body->handle = bodyInterface.CreateBody(bodySettings);
+    
     body->id = body->handle->GetID();
     body->handle->SetUserData((uint64_t)(uintptr_t)body);
 
